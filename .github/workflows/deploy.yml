@@ -1,0 +1,67 @@
+name: Deploy Fusion workflows
+
+# Validates on pull requests. On push to main or a manual run, it imports and releases
+# every workflows/*.yaml into the CID set by the FALCON_* secrets. Workflows are matched
+# by name, so re-running the job replaces them rather than creating duplicates.
+
+on:
+  push:
+    branches: [main]
+    paths: ['workflows/**', '.github/workflows/deploy.yml']
+  pull_request:
+    paths: ['workflows/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+env:
+  # CrowdStrike/fusion-skills, pinned for reproducible deploys. Bump when you want a newer version.
+  FUSION_SKILLS_REF: f2b93912e4ccc5e8340c028682a01a0aaeb380ef
+  FALCON_CLIENT_ID: ${{ secrets.FALCON_CLIENT_ID }}
+  FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
+  FALCON_BASE_URL: ${{ vars.FALCON_BASE_URL || 'https://api.crowdstrike.com' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: fusion-deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: CrowdStrike/fusion-skills
+          ref: ${{ env.FUSION_SKILLS_REF }}
+          path: fusion-skills
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - run: pip install -r fusion-skills/requirements.txt
+
+      - name: Render recipient
+        env:
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: |
+          [[ -n "$RECIPIENT_EMAIL" ]] || { echo "::error::Set the RECIPIENT_EMAIL repo secret"; exit 1; }
+          mkdir -p build
+          for f in workflows/*.yaml; do
+            sed "s|__RECIPIENT_EMAIL__|${RECIPIENT_EMAIL}|g" "$f" > "build/$(basename "$f")"
+          done
+
+      - name: Validate
+        run: python fusion-skills/skills/authoring/scripts/validate.py build/*.yaml
+
+      - name: Import and release
+        if: github.event_name != 'pull_request'
+        run: |
+          for f in build/*.yaml; do
+            out=$(python fusion-skills/skills/deployment/scripts/import_workflows.py "$f" --replace)
+            echo "$out"
+            id=$(grep -oE 'ID: [0-9a-f]{32}' <<<"$out" | tail -1 | cut -d' ' -f2)
+            [[ -n "$id" ]] || { echo "::error::No definition ID found in import output for $f"; exit 1; }
+            python fusion-skills/skills/deployment/scripts/release_workflow.py --id "$id"
+          done

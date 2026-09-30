@@ -1,0 +1,43 @@
+# Demo: email every new IOM (cloud misconfiguration) detection
+# Trigger: Cloud security assessment > Configuration (IOM) — event CloudSecurityAssessment/Configuration
+# Note: the IOM trigger payload carries account ID but NOT account name or compliance framework.
+name: 'Demo - IOM detection to email'
+description: 'Signal: when a CSPM Indicator of Misconfiguration fires, email an HTML summary with cloud, account, region, policy, severity, resource and console link.'
+trigger:
+    next:
+        - SendEmailIOM
+    name: Cloud security assessment > Configuration (IOM) configuration
+    event: CloudSecurityAssessment/Configuration
+    type: Signal
+    version_constraint: ~1
+actions:
+    SendEmailIOM:
+        id: 07413ef9ba7c47bf5a242799f59902cc
+        name: Send email - IOM summary
+        properties:
+            to:
+                - __RECIPIENT_EMAIL__
+            subject: "[Fusion Demo] IOM ${data[?'Trigger.CloudSecurityAssessment.SeverityDisplayName'].orValue('')} - ${data[?'Trigger.CloudSecurityAssessment.Policy'].orValue('')}"
+            msg: |
+                <html><body style="font-family:Arial,sans-serif">
+                <h2>Falcon Cloud Security - Indicator of Misconfiguration</h2>
+                <table border="1" cellpadding="6" style="border-collapse:collapse">
+                <tr><td><b>Policy</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Policy'].orValue('')}</td></tr>
+                <tr><td><b>Policy ID</b></td><td>${data[?'Trigger.CloudSecurityAssessment.PolicyID'].orValue('')}</td></tr>
+                <tr><td><b>Severity</b></td><td>${data[?'Trigger.CloudSecurityAssessment.SeverityDisplayName'].orValue('')}</td></tr>
+                <tr><td><b>Disposition</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Disposition'].orValue('')}</td></tr>
+                <tr><td><b>Cloud</b></td><td>${data[?'Trigger.CloudSecurityAssessment.CloudProvider'].orValue('')} / ${data[?'Trigger.CloudSecurityAssessment.CloudServiceName'].orValue('')}</td></tr>
+                <tr><td><b>AWS account</b></td><td>${data[?'Trigger.CloudSecurityAssessment.AWS.AccountID'].orValue('')}</td></tr>
+                <tr><td><b>Azure subscription</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Azure.SubscriptionID'].orValue('')}</td></tr>
+                <tr><td><b>GCP parent</b></td><td>${data[?'Trigger.CloudSecurityAssessment.GCP.ParentID'].orValue('')}</td></tr>
+                <tr><td><b>Region</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Configuration.CloudRegion'].orValue('')}</td></tr>
+                <tr><td><b>Resource</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Configuration.ResourceID'].orValue('')} (${data[?'Trigger.CloudSecurityAssessment.Configuration.ResourceIDType'].orValue('')})</td></tr>
+                <tr><td><b>Finding</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Configuration.Finding'].orValue('')}</td></tr>
+                <tr><td><b>Remediable</b></td><td>${data[?'Trigger.CloudSecurityAssessment.IsRemediable'].orValue(false)}</td></tr>
+                <tr><td><b>First detected</b></td><td>${data[?'Trigger.CloudSecurityAssessment.Configuration.FirstDetected'].orValue('')}</td></tr>
+                </table>
+                <p><a href="${data[?'Trigger.SourceEventURL'].orValue('')}">Open in Falcon console</a></p>
+                </body></html>
+            msg_type: html
+        version_constraint: ~1
+output_fields: []

@@ -1,0 +1,41 @@
+# Demo: email every Cloud risk event
+# Trigger: Cloud risk — event CloudRisk
+# Note: the Cloud risk trigger payload carries account name but NOT a compliance framework.
+name: 'Demo - Cloud risk to email'
+description: 'Signal: when a Falcon Cloud Security cloud risk is raised, email an HTML summary with rule, severity, status, account name/ID, asset, risk factors and remediation.'
+trigger:
+    next:
+        - SendEmailCloudRisk
+    name: Cloud risk
+    event: CloudRisk
+    type: Signal
+    version_constraint: ~1
+actions:
+    SendEmailCloudRisk:
+        id: 07413ef9ba7c47bf5a242799f59902cc
+        name: Send email - Cloud risk summary
+        properties:
+            to:
+                - __RECIPIENT_EMAIL__
+            subject: "[Fusion Demo] Cloud risk ${data[?'Trigger.CloudRisk.Severity'].orValue('')} - ${data[?'Trigger.CloudRisk.RuleName'].orValue('')} - ${data[?'Trigger.CloudRisk.Asset.CloudAccountName'].orValue('')}"
+            msg: |
+                <html><body style="font-family:Arial,sans-serif">
+                <h2>Falcon Cloud Security - Cloud Risk</h2>
+                <table border="1" cellpadding="6" style="border-collapse:collapse">
+                <tr><td><b>Rule</b></td><td>${data[?'Trigger.CloudRisk.RuleName'].orValue('')}</td></tr>
+                <tr><td><b>Severity</b></td><td>${data[?'Trigger.CloudRisk.Severity'].orValue('')}</td></tr>
+                <tr><td><b>Status</b></td><td>${data[?'Trigger.CloudRisk.Status'].orValue('')} ${data[?'Trigger.CloudRisk.StatusReason'].orValue('')}</td></tr>
+                <tr><td><b>Newly opened</b></td><td>${data[?'Trigger.CloudRisk.NewlyOpened'].orValue(false)}</td></tr>
+                <tr><td><b>Account</b></td><td>${data[?'Trigger.CloudRisk.Asset.CloudAccountName'].orValue('')} (${data[?'Trigger.CloudRisk.Asset.CloudAccountId'].orValue('')})</td></tr>
+                <tr><td><b>Cloud / Region</b></td><td>${data[?'Trigger.CloudRisk.Asset.CloudProvider'].orValue('')} / ${data[?'Trigger.CloudRisk.Asset.Region'].orValue('')}</td></tr>
+                <tr><td><b>Asset</b></td><td>${data[?'Trigger.CloudRisk.Asset.Name'].orValue('')} (${data[?'Trigger.CloudRisk.Asset.Type'].orValue('')})</td></tr>
+                <tr><td><b>Risk factors</b></td><td>${data[?'Trigger.CloudRisk.RiskFactorNames'].orValue('')}</td></tr>
+                <tr><td><b>Risk summary</b></td><td>${data[?'Trigger.CloudRisk.RiskSummary'].orValue('')}</td></tr>
+                <tr><td><b>Rule description</b></td><td>${data[?'Trigger.CloudRisk.RuleDescription'].orValue('')}</td></tr>
+                <tr><td><b>First seen</b></td><td>${data[?'Trigger.CloudRisk.FirstSeen'].orValue('')}</td></tr>
+                </table>
+                <p><a href="${data[?'Trigger.CloudRisk.Asset.URL'].orValue('')}">Open asset</a> | <a href="${data[?'Trigger.SourceEventURL'].orValue('')}">Open in Falcon console</a></p>
+                </body></html>
+            msg_type: html
+        version_constraint: ~1
+output_fields: []
